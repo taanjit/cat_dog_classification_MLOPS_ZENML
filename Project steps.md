@@ -220,7 +220,10 @@ Then open:
 👉 http://127.0.0.1:8000/docs
 
 
-1️⃣ Data Versioning
+
+# Branch data_version
+
+🧩 1️⃣ Data Versioning
 🎯 Goal
 
 Track which data version each model was trained on — so you can reproduce experiments and detect drift later.
@@ -241,3 +244,201 @@ dvc init
 dvc add data/train data/validation
 git add data/*.dvc .gitignore
 git commit -m "Versioned training data"
+
+
+Then in your ZenML data_loader step:
+
+import subprocess
+from zenml import step
+
+@step
+def data_loader(data_dir: str):
+    # Log the current DVC hash for traceability
+    dvc_hash = subprocess.check_output(["dvc", "status", "-c"]).decode().strip()
+    print(f"🔖 DVC data version: {dvc_hash}")
+    return data_dir
+
+
+Every pipeline run will automatically track the data hash (via ZenML’s metadata).
+
+Option B: ZenML Artifact Store + Dataset Metadata
+
+ZenML itself tracks all data as artifacts. You can explicitly log dataset hashes:
+
+import hashlib, os
+from zenml import step
+
+@step
+def data_loader(data_dir: str):
+    hash_md5 = hashlib.md5()
+    for root, _, files in os.walk(data_dir):
+        for f in files:
+            with open(os.path.join(root, f), "rb") as file:
+                hash_md5.update(file.read())
+    print(f"📦 Data version hash: {hash_md5.hexdigest()}")
+    return data_dir
+
+
+This integrates seamlessly with ZenML’s pipeline lineage view.
+
+🧩 2️⃣ Feature Store
+🎯 Goal
+
+Have a single source of truth for engineered features — shared between training and inference.
+
+✅ Best Tools
+Option A: Feast (Open Source) — Most common
+
+Feast lets you define feature sets (e.g., “image stats”, “color histograms”, etc.) and store them locally or in online databases (Redis, BigQuery, etc.).
+
+Install & initialize:
+
+pip install feast
+feast init feature_repo
+cd feature_repo
+
+
+Example feature definition:
+
+from feast import FeatureStore, Entity, FeatureView, Field
+from feast.types import Float32
+
+image = Entity(name="image_id")
+
+feature_view = FeatureView(
+    name="image_features",
+    entities=[image],
+    schema=[
+        Field(name="brightness", dtype=Float32),
+        Field(name="contrast", dtype=Float32),
+    ],
+    online=True,
+    batch_source=...
+)
+
+
+You can fetch features in ZenML steps like:
+
+from feast import FeatureStore
+
+@step
+def feature_loader(image_id: int):
+    store = FeatureStore(repo_path="feature_repo")
+    features = store.get_online_features(
+        feature_refs=["image_features:brightness", "image_features:contrast"],
+        entity_rows=[{"image_id": image_id}]
+    ).to_dict()
+    return features
+
+
+Feast integrates directly with ZenML through its Feast integration:
+
+zenml integration install feast
+
+
+Then you can register a FeastFeatureStore as part of your ZenML stack.
+
+Option B: Pandas / Parquet Feature Store (lightweight local setup)
+
+If you’re staying local, maintain features as Parquet files (fast + versionable):
+
+feature_store/
+├── v1/
+│   └── image_features.parquet
+├── v2/
+│   └── image_features.parquet
+
+
+Your feature_store_step can simply load the latest version based on timestamp.
+
+🧩 3️⃣ Data Validation
+🎯 Goal
+
+Automatically validate datasets before training to ensure:
+
+No schema mismatches
+
+No missing critical columns
+
+No class imbalance drift
+
+✅ Techniques
+Option A: Great Expectations (Powerful & ZenML-integrated)
+
+Install:
+
+pip install great_expectations
+zenml integration install great_expectations
+
+
+Then create a validation step:
+
+from zenml import step
+import great_expectations as ge
+
+@step
+def data_validation_step(data_dir: str):
+    df = ge.read_csv(f"{data_dir}/metadata.csv")
+    df.expect_column_values_to_not_be_null("label")
+    df.expect_column_values_to_be_in_set("label", ["cat", "dog"])
+    df.expect_table_row_count_to_be_between(1000, 20000)
+    validation_results = df.validate()
+    if not validation_results["success"]:
+        raise ValueError("❌ Data validation failed.")
+    print("✅ Data validation passed.")
+    return data_dir
+
+
+Integrate before data_preprocessor in your pipeline:
+
+from steps.data_validation import data_validation_step
+
+@pipeline
+def training_pipeline(data_dir: str):
+    data_dir = data_loader(data_dir)
+    data_dir = data_validation_step(data_dir)
+    train_dir, val_dir = data_preprocessor(data_dir, data_dir)
+    model = model_trainer(train_dir, val_dir)
+
+Option B: TensorFlow Data Validation (TFDV) — For TF pipelines
+
+If your data is TensorFlow-based (e.g., TFRecords), use:
+
+pip install tensorflow-data-validation
+
+
+and run schema checks like:
+
+import tensorflow_data_validation as tfdv
+
+@step
+def data_validation_step(data_dir: str):
+    stats = tfdv.generate_statistics_from_csv(f"{data_dir}/train.csv")
+    schema = tfdv.infer_schema(stats)
+    anomalies = tfdv.validate_statistics(stats, schema)
+    if anomalies.anomaly_info:
+        raise ValueError(f"Data anomalies detected: {anomalies}")
+
+🧠 Putting it All Together — New ZenML Workflow
+data_loader
+   ↓
+data_version_logger     (DVC or hash-based)
+   ↓
+data_validation_step    (Great Expectations)
+   ↓
+feature_store_loader    (Feast or local parquet)
+   ↓
+model_trainer
+   ↓
+model_evaluator
+
+🧰 Recommended Stack
+Category	Tool	Integration
+Data Versioning	DVC or ZenML Metadata	Track dataset versions & hashes
+Feature Store	Feast	Register as ZenML stack component
+Data Validation	Great Expectations	ZenML data_validation_step
+Orchestration	ZenML	Orchestrate and log pipeline runs
+Deployment	FastAPI	Serve predictions
+
+Would you like me to extend your current ZenML project (with actual working steps for data versioning + validation + feature store integration code)?
+I can show the exact files to add (steps/data_validation.py, steps/data_version.py, etc.) with ready-to-run examples.
