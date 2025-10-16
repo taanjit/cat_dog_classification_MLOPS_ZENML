@@ -1,0 +1,6 @@
+artifact_location: file:///home/thinkpalm/ai_service_users/anjit/MLops/zenml/cat_dog_classification/mlruns/371416494231666595
+creation_time: 1760616259052
+experiment_id: '371416494231666595'
+last_update_time: 1760616259052
+lifecycle_stage: active
+name: training_pipeline
