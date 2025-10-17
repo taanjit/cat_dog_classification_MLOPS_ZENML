@@ -609,3 +609,199 @@ Deployment	BentoML, FastAPI, MLflow Serving	Serve models as REST APIs
 Would you like me to give you a code-level implementation showing how to wire together
 ZenML + DVC + MLflow + Git tracking in one unified training_pipeline.py?
 I can generate the complete working files (steps/, pipelines/, requirements.txt, etc.) for you.
+
+🧠 1. Performance Monitoring
+🎯 Goal:
+
+Track model accuracy, precision, recall, F1, latency, and throughput after deployment.
+
+🔧 Techniques:
+Tool / Technique	Description
+Evidently AI	Open-source library that monitors data quality, model performance, and drift. Easily integrates with ZenML.
+Prometheus + Grafana	For real-time metrics collection (e.g., inference latency, API errors, request count).
+MLflow Model Monitoring (via ZenML Integration)	Log production metrics (accuracy, drift, etc.) into MLflow runs.
+🧩 Integration (ZenML Step Example)
+
+You can add a new step performance_monitor.py:
+
+# steps/performance_monitor.py
+import mlflow
+from zenml import step
+import numpy as np
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+@step(enable_cache=False)
+def performance_monitor(y_true: list, y_pred: list):
+    """
+    Step: Log post-deployment model performance metrics.
+    """
+    accuracy = accuracy_score(y_true, y_pred)
+    precision = precision_score(y_true, y_pred, zero_division=0)
+    recall = recall_score(y_true, y_pred, zero_division=0)
+    f1 = f1_score(y_true, y_pred, zero_division=0)
+
+    # Log metrics to MLflow
+    mlflow.log_metrics({
+        "prod_accuracy": accuracy,
+        "prod_precision": precision,
+        "prod_recall": recall,
+        "prod_f1": f1
+    })
+
+    print(f"[performance_monitor] ✅ Logged Performance Metrics:")
+    print(f"Accuracy={accuracy:.3f}, Precision={precision:.3f}, Recall={recall:.3f}, F1={f1:.3f}")
+
+    return {"accuracy": accuracy, "f1": f1}
+
+
+You can integrate this into your inference pipeline (e.g., nightly batch inference with ground truth updates).
+
+🧠 2. Data Drift & Concept Drift Detection
+🎯 Goal:
+
+Detect when:
+
+Data drift = incoming features change distribution from training data.
+
+Concept drift = model relationships (X → y) change (e.g., new unseen patterns).
+
+🔧 Techniques:
+Tool / Library	Use Case
+Evidently AI	Statistical drift detection (KS test, PSI, Chi-square, etc.)
+River	Online learning models and streaming drift detection (ADWIN, DDM).
+WhyLabs / Arize AI / Fiddler AI	Managed drift and performance monitoring platforms.
+Custom Statistical Tests	Compare current vs baseline means, stddev, histograms, etc.
+🧩 Integration Example (data_drift_detector.py)
+# steps/data_drift_detector.py
+from zenml import step
+import pandas as pd
+from evidently.report import Report
+from evidently.metric_preset import DataDriftPreset
+
+@step(enable_cache=False)
+def data_drift_detector(reference_data: pd.DataFrame, current_data: pd.DataFrame):
+    """
+    Step: Detect data drift between training and current production data.
+    """
+    print("[data_drift_detector] 🔍 Running data drift detection...")
+    drift_report = Report(metrics=[DataDriftPreset()])
+    drift_report.run(reference_data=reference_data, current_data=current_data)
+    drift_report.save_html("reports/data_drift_report.html")
+
+    drift_detected = drift_report.as_dict()['metrics'][0]['result']['dataset_drift']
+    print(f"[data_drift_detector] ⚠️ Drift Detected: {drift_detected}")
+
+    return drift_detected
+
+
+You can schedule this step via ZenML’s automations (e.g., daily or weekly).
+
+🧠 3. Alerting & Logging
+🎯 Goal:
+
+Notify stakeholders when:
+
+Model accuracy drops below threshold.
+
+Data drift exceeds threshold.
+
+API errors or latency spikes occur.
+
+🔧 Techniques:
+Tool / Method	Description
+Slack / Teams / Email Alerts	Trigger notifications using webhooks or SMTP when thresholds breached.
+Prometheus AlertManager	Rule-based alerts for metrics (latency, accuracy).
+Sentry / ELK Stack (Elastic + Kibana)	Centralized error tracking and log analysis.
+ZenML Service Connectors	Integrate alerts directly via step notifications.
+🧩 Example Alert Step (alert_notifier.py)
+# steps/alert_notifier.py
+import requests
+from zenml import step
+
+SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+
+@step(enable_cache=False)
+def alert_notifier(message: str, level: str = "info"):
+    """
+    Step: Send alerts to Slack or Teams channel.
+    """
+    color = "#36a64f" if level == "info" else "#ff0000"
+    payload = {
+        "attachments": [{
+            "color": color,
+            "text": f"🚨 *{level.upper()} ALERT:*\n{message}"
+        }]
+    }
+
+    try:
+        requests.post(SLACK_WEBHOOK_URL, json=payload)
+        print(f"[alert_notifier] ✅ Alert sent to Slack ({level})")
+    except Exception as e:
+        print(f"[alert_notifier] ⚠️ Failed to send alert: {e}")
+
+
+You can trigger alerts from other steps (e.g., drift detector, performance monitor) when thresholds are violated.
+
+🧩 Integration into Your Current Pipeline
+
+Extend your existing training_pipeline.py or create a separate monitoring pipeline like:
+
+# pipelines/monitoring_pipeline.py
+from zenml import pipeline
+from steps.data_drift_detector import data_drift_detector
+from steps.performance_monitor import performance_monitor
+from steps.alert_notifier import alert_notifier
+
+@pipeline(enable_cache=False)
+def monitoring_pipeline(reference_data, current_data, y_true, y_pred):
+    drift = data_drift_detector(reference_data, current_data)
+    perf = performance_monitor(y_true, y_pred)
+
+    if drift or perf["accuracy"] < 0.70:
+        alert_notifier(message=f"⚠️ Drift={drift}, Accuracy={perf['accuracy']:.3f}", level="warning")
+
+
+Then schedule it via ZenML:
+
+zenml schedule create --pipeline=monitoring_pipeline --interval=1d
+
+⚙️ Recommended Stack Setup
+Component	Tool
+Experiment Tracking	MLflow
+Drift Detection	Evidently AI
+Monitoring Metrics	Prometheus + Grafana
+Alerts	Slack Webhook
+Logging	ZenML + Sentry / ELK Stack
+🧭 Summary — Future-Proof MLOps Architecture
++---------------------------+
+|       Data Sources        |
++------------+--------------+
+             ↓
++---------------------------+
+|   Data Versioning (DVC)   |
++------------+--------------+
+             ↓
++---------------------------+
+|     ZenML Training Flow   |
+| (Data Load → Train → Eval)|
++------------+--------------+
+             ↓
++---------------------------+
+|  MLflow Model Registry    |
++------------+--------------+
+             ↓
++---------------------------+
+|   FastAPI Model Serving   |
++------------+--------------+
+             ↓
++---------------------------+
+| Monitoring & Drift Checks |
+| (Evidently + Prometheus)  |
++------------+--------------+
+             ↓
++---------------------------+
+| Alerts (Slack / Email)    |
++---------------------------+
+
+
+<!-- extend this pipeline so that, If drift is detected, it automatically triggers retraining (run_pipeline.py)? -->
