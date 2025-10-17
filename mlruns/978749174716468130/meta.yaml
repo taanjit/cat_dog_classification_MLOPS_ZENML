@@ -1,0 +1,6 @@
+artifact_location: file:///home/thinkpalm/ai_service_users/anjit/MLops/zenml/cat_dog_classification/mlruns/978749174716468130
+creation_time: 1760618873915
+experiment_id: '978749174716468130'
+last_update_time: 1760618873915
+lifecycle_stage: active
+name: CatDog_Classifier

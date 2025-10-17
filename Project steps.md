@@ -442,3 +442,170 @@ Deployment	FastAPI	Serve predictions
 
 Would you like me to extend your current ZenML project (with actual working steps for data versioning + validation + feature store integration code)?
 I can show the exact files to add (steps/data_validation.py, steps/data_version.py, etc.) with ready-to-run examples.
+
+
+# ⚙️ 1. Experiment Tracking
+✅ Goal:
+
+Track hyperparameters, metrics, data version, and artifacts for each model training run.
+
+💡 Techniques:
+Tool	                    Type	        ZenML Integration	            Notes
+MLflow	                    Open-source	    ✅ Native integration	    Most popular for experiment tracking, artifact logging
+Weights & Biases (W&B)	    SaaS	        ✅ ZenML plugin	            Great dashboards, collaborative
+Neptune.ai	                SaaS	        ✅ ZenML plugin	            Enterprise-grade, secure
+ZenML Experiment Tracker	Built-in	    ✅ Default	                For small setups, easy to start
+🔧 Implementation (MLflow example)
+
+Step 1: Install MLflow integration
+
+zenml integration install mlflow -y
+
+
+Step 2: Register MLflow experiment tracker
+
+zenml experiment-tracker register mlflow_tracker \
+    --flavor=mlflow \
+    --tracking_uri="file:./mlruns"
+
+
+Step 3: Update your active stack
+
+zenml stack update default -e mlflow_tracker
+
+
+Step 4: Modify your model_trainer.py
+
+from zenml import step
+from zenml.client import Client
+import mlflow
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+
+@step(experiment_tracker="mlflow_tracker")
+def model_trainer(train_dir: str, val_dir: str):
+    import tensorflow as tf
+    from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+    datagen = ImageDataGenerator(rescale=1.0 / 255)
+    train_gen = datagen.flow_from_directory(train_dir, target_size=(150, 150), batch_size=32, class_mode="binary")
+    val_gen = datagen.flow_from_directory(val_dir, target_size=(150, 150), batch_size=32, class_mode="binary")
+
+    model = Sequential([
+        Conv2D(32, (3, 3), activation="relu", input_shape=(150, 150, 3)),
+        MaxPooling2D(2, 2),
+        Conv2D(64, (3, 3), activation="relu"),
+        MaxPooling2D(2, 2),
+        Flatten(),
+        Dense(128, activation="relu"),
+        Dropout(0.5),
+        Dense(1, activation="sigmoid")
+    ])
+
+    model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+
+    mlflow.log_param("optimizer", "adam")
+    mlflow.log_param("batch_size", 32)
+
+    history = model.fit(train_gen, validation_data=val_gen, epochs=5)
+
+    mlflow.log_metric("val_accuracy", history.history["val_accuracy"][-1])
+    mlflow.log_metric("val_loss", history.history["val_loss"][-1])
+
+    model.save("artifacts/cat_dog_model.keras")
+    mlflow.tensorflow.log_model(model, "model")
+
+    return "artifacts/cat_dog_model.keras"
+
+
+🖥️ Now every pipeline run will show up in the MLflow dashboard:
+
+mlflow ui
+# visit http://127.0.0.1:5000
+
+🧩 2. Code Versioning
+✅ Goal:
+
+Associate each model with the exact code and environment that created it.
+
+💡 Techniques:
+Technique	Tool	How to Integrate
+Git Commit Tagging	Git	Log commit hash to MLflow / ZenML metadata
+ZenML Git Metadata	Built-in	ZenML automatically tracks the Git commit of your pipeline run
+Git Hooks / CI/CD	GitHub Actions, GitLab	Auto-trigger pipelines on code pushes
+🔧 Implementation
+
+Add this snippet in your model_trainer step:
+
+import subprocess
+
+commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
+mlflow.log_param("git_commit", commit_hash)
+
+
+Now, your MLflow experiment will clearly show:
+
+optimizer = adam
+batch_size = 32
+git_commit = a7f09b3
+
+
+✅ This creates full traceability between data version (DVC) and code version (Git).
+
+🧠 3. Training Pipeline Enhancements
+✅ Goal:
+
+Build modular, automated training using ZenML pipelines.
+
+💡 Techniques:
+Concept	Description
+Pipelines	Orchestrate modular steps (data_loader → preprocess → train → evaluate)
+Orchestrators	ZenML supports local, Airflow, Kubeflow, Argo, etc.
+Hyperparameter tuning	Use ZenML’s integrations with Optuna, KerasTuner, or custom loops
+Pipeline caching	ZenML automatically reuses previous step outputs to save time
+Example ZenML Pipeline (enhanced)
+from zenml import pipeline
+from steps.data_loader import data_loader
+from steps.data_preprocessor import data_preprocessor
+from steps.model_trainer import model_trainer
+
+@pipeline(enable_cache=True)
+def training_pipeline(data_dir: str):
+    train_dir, val_dir = data_loader(data_dir)
+    train_dir, val_dir = data_preprocessor(train_dir, val_dir)
+    model_path = model_trainer(train_dir, val_dir)
+    return model_path
+
+🧱 4. Putting It All Together — Your Workflow Now Looks Like:
+📦 DVC for data versioning
+   ↓
+⚙️ ZenML pipeline orchestration
+   ↓
+🔬 MLflow for experiment tracking
+   ↓
+🧠 Git for code versioning
+   ↓
+📊 Model registry (optional)
+
+
+Each run tracks:
+
+Dataset version (DVC hash)
+
+Code version (Git commit)
+
+Hyperparameters and metrics (MLflow)
+
+Model artifact (saved .keras + registered model)
+
+Pipeline lineage (ZenML dashboard)
+
+🚀 Optional Add-ons
+Goal	Tool	Benefit
+Feature Store	Feast, Hopsworks	Manage training/serving consistency
+Data Validation	Great Expectations	Automatically validate schema & drift
+Deployment	BentoML, FastAPI, MLflow Serving	Serve models as REST APIs
+
+Would you like me to give you a code-level implementation showing how to wire together
+ZenML + DVC + MLflow + Git tracking in one unified training_pipeline.py?
+I can generate the complete working files (steps/, pipelines/, requirements.txt, etc.) for you.

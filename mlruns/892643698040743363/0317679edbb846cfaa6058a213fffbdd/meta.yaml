@@ -1,0 +1,15 @@
+artifact_uri: file:///home/thinkpalm/ai_service_users/anjit/MLops/zenml/cat_dog_classification/mlruns/892643698040743363/0317679edbb846cfaa6058a213fffbdd/artifacts
+end_time: 1760675745288
+entry_point_name: ''
+experiment_id: '892643698040743363'
+lifecycle_stage: active
+run_id: 0317679edbb846cfaa6058a213fffbdd
+run_name: monumental-cat-414
+run_uuid: 0317679edbb846cfaa6058a213fffbdd
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1760675605402
+status: 3
+tags: []
+user_id: thinkpalm

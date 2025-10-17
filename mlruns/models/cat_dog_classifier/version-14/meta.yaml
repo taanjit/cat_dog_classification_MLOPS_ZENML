@@ -1,0 +1,14 @@
+aliases: []
+creation_timestamp: 1760686936710
+current_stage: Production
+description: null
+last_updated_timestamp: 1760686936736
+name: cat_dog_classifier
+run_id: 092f48d1a40a4ef99614f375a74882bd
+run_link: null
+source: file:///home/thinkpalm/ai_service_users/anjit/MLops/zenml/cat_dog_classification/mlruns/355150974571299694/092f48d1a40a4ef99614f375a74882bd/artifacts/model
+status: READY
+status_message: null
+storage_location: file:///home/thinkpalm/ai_service_users/anjit/MLops/zenml/cat_dog_classification/mlruns/355150974571299694/092f48d1a40a4ef99614f375a74882bd/artifacts/model
+user_id: null
+version: 14

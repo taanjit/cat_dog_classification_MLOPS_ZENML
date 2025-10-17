@@ -1,0 +1,15 @@
+artifact_uri: file:///home/thinkpalm/ai_service_users/anjit/MLops/zenml/cat_dog_classification/mlruns/892643698040743363/8d882a25a93c43eb8b80bc887afbe1e2/artifacts
+end_time: 1760674772826
+entry_point_name: ''
+experiment_id: '892643698040743363'
+lifecycle_stage: active
+run_id: 8d882a25a93c43eb8b80bc887afbe1e2
+run_name: victorious-deer-133
+run_uuid: 8d882a25a93c43eb8b80bc887afbe1e2
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1760674622285
+status: 3
+tags: []
+user_id: thinkpalm

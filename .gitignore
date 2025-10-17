@@ -220,3 +220,7 @@ __marimo__/
 *.pb
 *.tflite
 *.ckpt
+
+
+# image files
+*.zip

@@ -1,0 +1,15 @@
+artifact_uri: file:///home/thinkpalm/ai_service_users/anjit/MLops/zenml/cat_dog_classification/mlruns/355150974571299694/a561a0cf6a264f4d85be4e7a90886be9/artifacts
+end_time: 1760676980471
+entry_point_name: ''
+experiment_id: '355150974571299694'
+lifecycle_stage: active
+run_id: a561a0cf6a264f4d85be4e7a90886be9
+run_name: cnn_cat_dog
+run_uuid: a561a0cf6a264f4d85be4e7a90886be9
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1760675971275
+status: 3
+tags: []
+user_id: thinkpalm
