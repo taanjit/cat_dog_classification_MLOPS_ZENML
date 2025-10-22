@@ -60,7 +60,7 @@ def run_monitoring():
 
     # Dummy example predictions — replace with real predictions if available
     y_true = [0, 1, 0, 1, 1, 0, 0, 1]
-    y_pred = [0, 1, 0, 1, 0, 0, 1, 1]
+    y_pred = [0, 1, 0, 1, 1, 0, 0, 1]
 
     try:
         monitoring_pipeline(

@@ -1,8 +1,8 @@
 aliases: []
 creation_timestamp: 1760691723678
-current_stage: Production
+current_stage: Archived
 description: null
-last_updated_timestamp: 1760691723706
+last_updated_timestamp: 1760700156107
 name: cat_dog_classifier
 run_id: e879d0b6589a46d4a0ab87835b46701d
 run_link: null

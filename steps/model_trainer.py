@@ -92,7 +92,7 @@ def model_trainer(train_dir: str, val_dir: str) -> Tuple[str, float]:
         )
 
         # --- 4️⃣ Train the Model ---
-        history = model.fit(train_gen, validation_data=val_gen, epochs=10)  # can increase epochs
+        history = model.fit(train_gen, validation_data=val_gen, epochs=1)  # can increase epochs
         val_acc = history.history["val_accuracy"][-1]
         mlflow.log_metric("val_accuracy", val_acc)
 

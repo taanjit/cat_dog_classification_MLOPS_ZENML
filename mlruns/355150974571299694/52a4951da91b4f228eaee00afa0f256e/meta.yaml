@@ -1,5 +1,5 @@
 artifact_uri: file:///home/thinkpalm/ai_service_users/anjit/MLops/zenml/cat_dog_classification/mlruns/355150974571299694/52a4951da91b4f228eaee00afa0f256e/artifacts
-end_time: null
+end_time: 1760700156121
 entry_point_name: ''
 experiment_id: '355150974571299694'
 lifecycle_stage: active
@@ -10,6 +10,6 @@ source_name: ''
 source_type: 4
 source_version: ''
 start_time: 1760698067166
-status: 1
+status: 3
 tags: []
 user_id: thinkpalm
